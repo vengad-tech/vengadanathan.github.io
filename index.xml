@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>High performance computing - Learn to build and scale systems on High Performance computing</title>
+    <title>Learn to build and scale systems on High Performance computing</title>
     <link>https://example.com/</link>
-    <description>Recent content in High performance computing - Learn to build and scale systems on High Performance computing</description>
+    <description>Recent content in Learn to build and scale systems on High Performance computing</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
     <copyright>&amp;copy; Copyright 2018 Vengadanathan</copyright>
