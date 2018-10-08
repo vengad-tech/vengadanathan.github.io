@@ -6,13 +6,13 @@
   <title>Elasticsearch shard allocation algorithm - High Performance computing</title>
   <meta property="og:title" content="Elasticsearch shard allocation algorithm - High Performance computing" />
   <meta name="twitter:title" content="Elasticsearch shard allocation algorithm - High Performance computing" />
-  <meta name="description" content="ElasticSearch Shard allocation algorithm Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
+  <meta name="description" content="Demystifying shard allocation internals in Elasticsearch Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
 AllocationService is initiated here: AllocationService Github link
 What AllocationService does ? This service manages the node allocation of a cluster. For this reason the AllocationService keeps AllocationDeciders to choose nodes for shard allocation. This class also manages new nodes joining the cluster and rerouting of shards.">
-  <meta property="og:description" content="ElasticSearch Shard allocation algorithm Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
+  <meta property="og:description" content="Demystifying shard allocation internals in Elasticsearch Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
 AllocationService is initiated here: AllocationService Github link
 What AllocationService does ? This service manages the node allocation of a cluster. For this reason the AllocationService keeps AllocationDeciders to choose nodes for shard allocation. This class also manages new nodes joining the cluster and rerouting of shards.">
-  <meta name="twitter:description" content="ElasticSearch Shard allocation algorithm Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in …">
+  <meta name="twitter:description" content="Demystifying shard allocation internals in Elasticsearch Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule …">
   <meta name="author" content="Vengadanathan"/>
   <meta property="og:site_name" content="High Performance computing" />
   <meta property="og:url" content="https://example.com/post/elasticsearch_allocation_explained/" />
@@ -68,8 +68,9 @@ What AllocationService does ? This service manages the node allocation of a clus
 <aside class="toc">
   <nav id="TableOfContents">
 <ul>
-<li><a href="#elasticsearch-shard-allocation-algorithm">ElasticSearch Shard allocation algorithm</a>
+<li>
 <ul>
+<li><a href="#demystifying-shard-allocation-internals-in-elasticsearch">Demystifying shard allocation internals in Elasticsearch</a></li>
 <li><a href="#what-allocationservice-does">What AllocationService does ?</a>
 <ul>
 <li><a href="#1-sorting-the-list-of-shards-that-needs-to-assigned-and-order-of-processing-assigning-them">1. SORTING THE LIST OF SHARDS THAT NEEDS TO Assigned and order of processing/ASSIGNING them</a></li>
@@ -82,7 +83,7 @@ What AllocationService does ? This service manages the node allocation of a clus
 </aside>
       
 
-<h1 id="elasticsearch-shard-allocation-algorithm">ElasticSearch Shard allocation algorithm</h1>
+<h2 id="demystifying-shard-allocation-internals-in-elasticsearch">Demystifying shard allocation internals in Elasticsearch</h2>
 
 <p>Shard Allocation in ES is provided as service component named AllocationService.
 <strong>AllocationService</strong> is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.</p>
