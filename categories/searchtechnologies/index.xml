@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes" ?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Posts on High Performance computing</title>
-    <link>https://example.com/post/</link>
-    <description>Recent content in Posts on High Performance computing</description>
+    <title>Searchtechnologies on High Performance computing</title>
+    <link>https://example.com/categories/searchtechnologies/</link>
+    <description>Recent content in Searchtechnologies on High Performance computing</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
     <copyright>&amp;copy; Copyright 2018 Vengadanathan</copyright>
     <lastBuildDate>Mon, 08 Oct 2018 20:02:47 +0530</lastBuildDate>
     
-	<atom:link href="https://example.com/post/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="https://example.com/categories/searchtechnologies/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
@@ -21,15 +21,6 @@
       <description>ElasticSearch Shard allocation algorithm Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
 AllocationService is initiated here: AllocationService Github link
 What AllocationService does ? This service manages the node allocation of a cluster. For this reason the AllocationService keeps AllocationDeciders to choose nodes for shard allocation. This class also manages new nodes joining the cluster and rerouting of shards.</description>
-    </item>
-    
-    <item>
-      <title>Introduction to Asynchronous I/O</title>
-      <link>https://example.com/post/async_io_intro/</link>
-      <pubDate>Sat, 25 Aug 2018 17:35:00 +0530</pubDate>
-      
-      <guid>https://example.com/post/async_io_intro/</guid>
-      <description>What is Asynchronous I/O ? Input and output i.e I/O operations on a computer can be very slow compared to the processing of data i.e CPU intensive work. An I/O device can incorporate mechanical devices that must physically move, such as a hard drive seeking a track to read or write; this is often orders of magnitude slower than the switching of electric current. For example, during a disk operation that takes ten milliseconds to perform, a processor that is clocked at one gigahertz could have performed ten million instruction-processing cycles.</description>
     </item>
     
   </channel>

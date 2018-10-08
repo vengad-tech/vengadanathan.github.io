@@ -46,6 +46,34 @@
   <div class="main" role="main">
     <section class="list home-list">
       <article class="article">
+        <a href="/post/elasticsearch_allocation_explained/" class="article-titles">
+          <h2 class="article-title">Elasticsearch shard allocation algorithm</h2>
+          
+        </a>
+        <ul class="article-meta">
+          <li class="article-meta-date"><time>October 8, 2018</time></li>
+          <li class="article-meta-categories">
+            <a href="/categories/elasticsearch/">
+              <i class="fas fa-folder"></i>
+              Elasticsearch
+            </a>&nbsp;
+          </li>
+          <li class="article-meta-categories">
+            <a href="/categories/searchtechnologies/">
+              <i class="fas fa-folder"></i>
+              SearchTechnologies
+            </a>&nbsp;
+          </li>
+        </ul>
+        <div class="article-content">
+          ElasticSearch Shard allocation algorithm Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
+AllocationService is initiated here: AllocationService Github link
+What AllocationService does ? This service manages the node allocation of a cluster. For this reason the AllocationService keeps AllocationDeciders to choose nodes for shard allocation. This class also manages new nodes joining the cluster and rerouting of shards.
+        </div>
+        <div class="article-readmore"><a href="/post/elasticsearch_allocation_explained/">Read more...</a></div>
+        <div class="article-floatclear"></div>
+      </article>
+      <article class="article">
         <a href="/post/async_io_intro/" class="article-titles">
           <h2 class="article-title">Introduction to Asynchronous I/O</h2>
           

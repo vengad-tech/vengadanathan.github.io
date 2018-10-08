@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <title>Elasticsearch shard allocation algorithm - High Performance computing</title>
+  <meta property="og:title" content="Elasticsearch shard allocation algorithm - High Performance computing" />
+  <meta name="twitter:title" content="Elasticsearch shard allocation algorithm - High Performance computing" />
+  <meta name="description" content="ElasticSearch Shard allocation algorithm Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
+AllocationService is initiated here: AllocationService Github link
+What AllocationService does ? This service manages the node allocation of a cluster. For this reason the AllocationService keeps AllocationDeciders to choose nodes for shard allocation. This class also manages new nodes joining the cluster and rerouting of shards.">
+  <meta property="og:description" content="ElasticSearch Shard allocation algorithm Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
+AllocationService is initiated here: AllocationService Github link
+What AllocationService does ? This service manages the node allocation of a cluster. For this reason the AllocationService keeps AllocationDeciders to choose nodes for shard allocation. This class also manages new nodes joining the cluster and rerouting of shards.">
+  <meta name="twitter:description" content="ElasticSearch Shard allocation algorithm Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in …">
+  <meta name="author" content="Vengadanathan"/>
+  <meta property="og:site_name" content="High Performance computing" />
+  <meta property="og:url" content="https://example.com/post/elasticsearch_allocation_explained/" />
+  <meta property="og:type" content="article" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="generator" content="Hugo 0.47.1" />
+  <link rel="stylesheet" href="/css/style.css" media="all" />
+  <link rel="stylesheet" href="/css/syntax.css" media="all" />
+  <link rel="stylesheet" href="/css/custom.css" media="all" />
+  <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+  <script defer src="https://use.fontawesome.com/releases/v5.0.10/js/all.js" integrity="sha384-slN8GvtUJGnv6ca26v8EzVaR9DC58QEwsIk9q1QXdCU8Yu8ck/tL/5szYlBbqmS+" crossorigin="anonymous"></script>
+</head>
+
+<body>
+
+<header class="site-header">
+  <nav class="site-navi">
+    <h1 class="site-title"><a href="/">High Performance computing</a></h1>
+    <ul class="site-navi-items">
+      <li class="site-navi-item-categories"><a href="/categories/" title="Categories">Categories</a></li>
+      <li class="site-navi-item-tags"><a href="/tags/" title="Tags">Tags</a></li>
+      <li class="site-navi-item-archives"><a href="/archives/" title="Archives">Archives</a></li>
+      <li class="site-navi-item-about"><a href="/about/" title="About">About</a></li>
+      <li class="site-navi-item-"><a href="/" title="Learn to build and scale systems">Learn to build and scale systems</a></li>
+    </ul>
+  </nav>
+</header>
+<hr class="site-header-bottom">
+
+  <div class="main" role="main">
+    <article class="article">
+      
+      
+      <h1 class="article-title">Elasticsearch shard allocation algorithm</h1>
+      
+      <hr class="article-title-bottom">
+      <ul class="article-meta">
+        <li class="article-meta-date"><time>October 8, 2018</time></li>
+        <li class="article-meta-categories">
+          <a href="/categories/elasticsearch/">
+            <i class="fas fa-folder"></i>
+            Elasticsearch
+          </a>&nbsp;
+        </li>
+        <li class="article-meta-categories">
+          <a href="/categories/searchtechnologies/">
+            <i class="fas fa-folder"></i>
+            SearchTechnologies
+          </a>&nbsp;
+        </li>
+      </ul>
+      
+<aside class="toc">
+  <nav id="TableOfContents">
+<ul>
+<li><a href="#elasticsearch-shard-allocation-algorithm">ElasticSearch Shard allocation algorithm</a>
+<ul>
+<li><a href="#what-allocationservice-does">What AllocationService does ?</a>
+<ul>
+<li><a href="#1-sorting-the-list-of-shards-that-needs-to-assigned-and-order-of-processing-assigning-them">1. SORTING THE LIST OF SHARDS THAT NEEDS TO Assigned and order of processing/ASSIGNING them</a></li>
+<li><a href="#2-find-suitable-nodes-where-the-shard-s-can-be-placed">2. Find suitable nodes where THE shard&rsquo;s can be placed</a></li>
+<li><a href="#3-pick-one-node-from-list-of-suitable-nodes-from-above-list-having-lowest-weight">3. Pick one node from list of suitable nodes (from above list) having lowest weight</a></li>
+</ul></li>
+</ul></li>
+</ul>
+</nav>
+</aside>
+      
+
+<h1 id="elasticsearch-shard-allocation-algorithm">ElasticSearch Shard allocation algorithm</h1>
+
+<p>Shard Allocation in ES is provided as service component named AllocationService.
+<strong>AllocationService</strong> is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.</p>
+
+<p>AllocationService is initiated here: <a href="https://github.com/elastic/elasticsearch/blob/09bf4e5f007492b5f765941080518c2de2381b35/server/src/main/java/org/elasticsearch/cluster/ClusterModule.java#L115">AllocationService Github link</a></p>
+
+<h2 id="what-allocationservice-does">What AllocationService does ?</h2>
+
+<p>This service manages the node allocation of a cluster. For this reason the AllocationService keeps AllocationDeciders to choose nodes for shard allocation. This class also manages new nodes joining the cluster and rerouting of shards.</p>
+
+<p>Major methods that we need to focus on this service to understand how allocation works are:</p>
+
+<p><strong>1.org.elasticsearch.cluster.routing.allocation.AllocationService#applyStartedShards(ClusterState, List)</strong></p>
+
+<p>This method applies the started shards. Initializing ShardRouting (i.e Shard info) instances that exist in the routing table are provided as parameter to this method. If the same instance of the ClusterState is returned by this method, then no change has been made.</p>
+
+<p><strong>2.org.elasticsearch.cluster.routing.allocation.AllocationService#applyFailedShards(ClusterState, List, List)</strong></p>
+
+<p>This method applies the failed shards. Assigned ShardRouting(i.e Shard info) instances that exist in the routing table is provided as parameter. Also applies a list of allocation ids to remove from the in-sync set for shard copies for which there are no routing entries in the routing table.</p>
+
+<p>Both of the above method calls the below method which actually performs the shard allocation.</p>
+
+<p><strong>org.elasticsearch.cluster.routing.allocation.AllocationService#reroute(RoutingAllocation)</strong>
+This is the method which processes the provided shard (initializing or failed one) and tries to find nodes where these shards can be allocated/re-routed to.
+Reroute method above make following calls to allocate the shards:</p>
+
+<pre><code>`  shardsAllocator.allocate(allocation);`
+</code></pre>
+
+<p>here shardAllocator is the logic class where all the shard allocation algorithm lies.</p>
+
+<p>Currently ES uses the following shard allocator: <strong>org.elasticsearch.cluster.routing.allocation.allocator.BalancedShardsAllocator</strong>
+<strong>Method:</strong> <a href="https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L884">org.elasticsearch.cluster.routing.allocation.allocator.BalancedShardsAllocator.Balancer#decideAllocateUnassigned</a> is the place where the logic of allocating unassigned shard resides.
+Let’s check out the algorithm used in **decideAllocateUnassigned **method
+For each shard that needs to be (re)assigned, BalancedShardsAllocator calls list of deciders (we will focus on list of deciders later below) class for each available node and finds all nodes where the shard can be stored, then amongst those selected nodes it picks the node which has less weight.</p>
+
+<p>we can split entire allocation approach into three parts as sorting and picking required shards to be allocated, and for each shard picking list of suitable nodes , and within those nodes select the one which has less weight (weight scoring is mentioned below).</p>
+
+<h3 id="1-sorting-the-list-of-shards-that-needs-to-assigned-and-order-of-processing-assigning-them">1. SORTING THE LIST OF SHARDS THAT NEEDS TO Assigned and order of processing/ASSIGNING them</h3>
+
+<p>First before allocating the list of shards, ES will sort them. ES uses following approach</p>
+
+<ul>
+<li>Sort the shards based in index ID first</li>
+<li>then Sort the shards ascending based on the shard ID i.e shard 1 will be processed first before shard 2 of same index, this will group similar shards of same index together</li>
+<li>Then within shards that has same shard ID i.e replica and primary shards, primary is given more preference and would be first in the list.</li>
+<li>When processing the shards after sorting we pick primaries first of all shards then after processing we pick one replica from each shard of each index. i.e if a shard has multiple replica first one replica all shards are processed first before processing to second replica&rsquo;s.</li>
+</ul>
+
+<p>Say there are 2 shards i.e from two index 1 and 2 with replica set as 2, then order of allocating them would be</p>
+
+<p>4 indices</p>
+
+<p>7 2 6</p>
+
+<p>index1 -</p>
+
+<p>index1:shard1:primary
+index1:shard2:primary</p>
+
+<p>index2:shard1:primary
+index2:shard2:primary</p>
+
+<p>index1:shard1:replica1
+index1:shard2:replica1</p>
+
+<p>index2:shard1:replica1
+index2:shard2:replica1</p>
+
+<p>index1:shard1:replica2
+index1:shard2:replica2</p>
+
+<p>index2:shard1:replica2
+index2:shard2:replica2</p>
+
+<p>This logic is present here: <a href="https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L778-L806">https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L778-L806</a></p>
+
+<h3 id="2-find-suitable-nodes-where-the-shard-s-can-be-placed">2. Find suitable nodes where THE shard&rsquo;s can be placed</h3>
+
+<p>In this section for  each shard we find list of nodes where this shard can be placed.
+We have list of following deciders and we run the shard and node info to each of the deciders and if all deciders returns <strong>YES</strong>, then that node is considered as suitable node else any one of the node returns <strong>NO</strong> it wont be considered.</p>
+
+<p>Following are list of deciders that ES currently use and they are called in the order as mentioned below. If any of the deciders returns NO then we short circuit i.e we return early and it means that the node is not suitable for hosting the shard. If all deciders returns YES, then that node will be added to list of supported nodes for a given shard and we go to next section to pick one from the list of supported nodes.</p>
+
+<p><strong>MaxRetryAllocationDecider</strong> (Prevent retry i.e fails chain early after shard has been retried multiple times)
+<strong>ResizeAllocationDecider</strong> (<em>ensures we allocate the shards of a target index for resize operations next to the source primaries</em>)
+<strong>ReplicaAfterPrimaryActiveAllocationDecider</strong> (<em>only allows for a replica to be allocated when the primary is active</em>)
+<strong>RebalanceOnlyWhenActiveAllocationDecider</strong> (<em>allow rebalancing when all shards are active within the shard replication group</em>)
+<strong>ClusterRebalanceAllocationDecider</strong>
+<strong>ConcurrentRebalanceAllocationDecider</strong> (throttles shard allocation/re-allocation based on max concurrent rebalance settings)
+<strong>EnableAllocationDecider</strong>
+<strong>NodeVersionAllocationDecider</strong> (ensure ES version and node version are compactible)
+<strong>SnapshotInProgressAllocationDecider</strong> (prevent shard movement which is currently being snapshot)
+<strong>RestoreInProgressAllocationDecider</strong> (prevent shard movement which is currently being restored also prevents failed shards to be allocated)
+<strong>FilterAllocationDecider</strong>
+<strong>SameShardAllocationDecider</strong> (prevents copy of shard allocated to same node)
+<strong>DiskThresholdDecider</strong>
+<strong>ThrottlingAllocationDecider</strong>
+<strong>ShardsLimitAllocationDecider</strong>
+**AwarenessAllocationDecider <strong>(Ensure&rsquo;s that primary and replica are not kept together in same rack/zone  etc)</strong> **</p>
+
+<p>this logic is done here: <a href="https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L891">https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L891</a></p>
+
+<h3 id="3-pick-one-node-from-list-of-suitable-nodes-from-above-list-having-lowest-weight">3. Pick one node from list of suitable nodes (from above list) having lowest weight</h3>
+
+<p>Above step i.e Step 2 gives us list of suitable nodes where we can place the shards.
+If step one returns empty list i.e no nodes are suitable for the shard then those shards will be un-assigned and would be retried later.  For each of those suitable nodes where shard can be placed we calculate weight for those nodes assuming the given shard is added to it, then pick the node which has the lowest weight upon allocation.</p>
+
+<p>First these thresholds are derived from settings
+By default <strong>indexBalance = 0.55f</strong> and <strong>shardBalance is 0.45f</strong> and can be changed by changing ES settings named (**cluster.routing.allocation.balance.index <strong>and</strong> luster.routing.allocation.balance.shard**)</p>
+
+<pre><code>theta0 = shardBalance / (indexBalance + shardBalance);
+theta1 = indexBalance / (indexBalance + shardBalance);
+</code></pre>
+
+<p>Below is the weight function that is called for each node which has required capacity for storing the index and we choose the node for which weight is less, thus allowing equal distribution of index and shards across the available nodes.</p>
+
+<p>i.e Below is algorithm calculates weight of a node by checking how many shards and index it has. We pick the node with less weight so that we are distributing the shards equally without overloading any particular node.</p>
+
+<pre><code>private float weight(Balancer balancer, ModelNode node, String index, int numAdditionalShards) {
+  final float weightShard = node.numShards() + numAdditionalShards - balancer.avgShardsPerNode();
+  final float weightIndex = node.numShards(index) + numAdditionalShards - balancer.avgShardsPerNode(index);
+  return theta0 * weightShard + theta1 * weightIndex;
+}
+         
+</code></pre>
+
+<p>This logic is done here: <a href="https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L898-L963">https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L898-L963</a></p>
+
+    </article>
+
+    
+<ul class="article-share">
+  <li>
+    <a href="https://twitter.com/share" class="twitter-share-button">Tweet</a> <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+  </li>
+  <li>
+    <div class="fb-share-button" data-href="https://example.com/post/elasticsearch_allocation_explained/" data-layout="button_count" data-action="like" data-size="small" data-show-faces="true" data-share="true"></div>
+    <div id="fb-root"></div>
+    <script>(function(d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = "//connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v2.10";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));</script>
+  </li>
+  <li>
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <g:plus action="share"></g:plus>
+  </li>
+  <li>
+    <a href="http://b.hatena.ne.jp/entry/" class="hatena-bookmark-button" data-hatena-bookmark-layout="basic-label-counter" data-hatena-bookmark-lang="en" title="このエントリーをはてなブックマークに追加"><img src="https://b.st-hatena.com/images/entry-button/button-only@2x.png" alt="このエントリーをはてなブックマークに追加" width="20" height="20" style="border: none;" /></a><script src="https://b.st-hatena.com/js/bookmark_button.js" charset="utf-8" async="async"></script>
+  </li>
+  <li>
+    <a data-pocket-label="pocket" data-pocket-count="horizontal" class="pocket-btn" data-lang="en"></a>
+    <script>!function(d,i){if(!d.getElementById(i)){var j=d.createElement("script");j.id=i;j.src="https://widgets.getpocket.com/v1/j/btn.js?v=1";var w=d.getElementById(i);d.body.appendChild(j);}}(document,"pocket-btn-js");</script>
+  </li>
+</ul>
+    <div class="disqus-comments">
+      <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "vengad-highscalability" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+    </div>
+
+    <ul class="pager article-pager">
+      <li class="pager-newer pager-noitem">&lt; Newer</li>
+      <li class="pager-older">
+        <a href="/post/async_io_intro/" data-toggle="tooltip" data-placement="top" title="Introduction to Asynchronous I/O">Older &gt;</a>
+      </li>
+    </ul>
+  </div>
+
+
+<div class="site-footer">
+  <div class="copyright">&copy; Copyright 2018 Vengadanathan</div>
+  <ul class="site-footer-items">
+    <li class="site-footer-item-about"><a href="/about/" title="About">About</a></li>
+  </ul>
+  <div class="powerdby">
+    Powered by <a href="https://gohugo.io/">Hugo</a> and <a href="https://github.com/taikii/whiteplain">Whiteplain</a>
+  </div>
+</div>
+<script src="/js/script.js"></script>
+<script src="/js/custom.js"></script>
+
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-124636253-1', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+
+</body>
+</html>
