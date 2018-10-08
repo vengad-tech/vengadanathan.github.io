@@ -63,9 +63,10 @@
           </li>
         </ul>
         <div class="article-content">
-          Demystifying shard allocation internals in Elasticsearch Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
+          Demystifying shard allocation internals in Elasticsearch Note: This intended for people who want to understand internal workings of Elasticsearch shard allocation
+Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
 AllocationService is initiated here: AllocationService Github link
-What AllocationService does ? This service manages the node allocation of a cluster. For this reason the AllocationService keeps AllocationDeciders to choose nodes for shard allocation. This class also manages new nodes joining the cluster and rerouting of shards.
+What AllocationService does ? This service manages the node allocation of a cluster.
         </div>
         <div class="article-readmore"><a href="/post/elasticsearch_allocation_explained/">Read more...</a></div>
         <div class="article-floatclear"></div>

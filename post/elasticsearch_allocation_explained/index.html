@@ -6,13 +6,16 @@
   <title>Elasticsearch shard allocation algorithm - High Performance computing</title>
   <meta property="og:title" content="Elasticsearch shard allocation algorithm - High Performance computing" />
   <meta name="twitter:title" content="Elasticsearch shard allocation algorithm - High Performance computing" />
-  <meta name="description" content="Demystifying shard allocation internals in Elasticsearch Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
+  <meta name="description" content="Demystifying shard allocation internals in Elasticsearch Note: This intended for people who want to understand internal workings of Elasticsearch shard allocation
+Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
 AllocationService is initiated here: AllocationService Github link
-What AllocationService does ? This service manages the node allocation of a cluster. For this reason the AllocationService keeps AllocationDeciders to choose nodes for shard allocation. This class also manages new nodes joining the cluster and rerouting of shards.">
-  <meta property="og:description" content="Demystifying shard allocation internals in Elasticsearch Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
+What AllocationService does ? This service manages the node allocation of a cluster.">
+  <meta property="og:description" content="Demystifying shard allocation internals in Elasticsearch Note: This intended for people who want to understand internal workings of Elasticsearch shard allocation
+Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.
 AllocationService is initiated here: AllocationService Github link
-What AllocationService does ? This service manages the node allocation of a cluster. For this reason the AllocationService keeps AllocationDeciders to choose nodes for shard allocation. This class also manages new nodes joining the cluster and rerouting of shards.">
-  <meta name="twitter:description" content="Demystifying shard allocation internals in Elasticsearch Shard Allocation in ES is provided as service component named AllocationService. AllocationService is initiated and started by ClusterModule …">
+What AllocationService does ? This service manages the node allocation of a cluster.">
+  <meta name="twitter:description" content="Demystifying shard allocation internals in Elasticsearch Note: This intended for people who want to understand internal workings of Elasticsearch shard allocation
+Shard Allocation in ES is provided as …">
   <meta name="author" content="Vengadanathan"/>
   <meta property="og:site_name" content="High Performance computing" />
   <meta property="og:url" content="https://example.com/post/elasticsearch_allocation_explained/" />
@@ -73,9 +76,9 @@ What AllocationService does ? This service manages the node allocation of a clus
 <li><a href="#demystifying-shard-allocation-internals-in-elasticsearch">Demystifying shard allocation internals in Elasticsearch</a></li>
 <li><a href="#what-allocationservice-does">What AllocationService does ?</a>
 <ul>
-<li><a href="#1-sorting-the-list-of-shards-that-needs-to-assigned-and-order-of-processing-assigning-them">1. SORTING THE LIST OF SHARDS THAT NEEDS TO Assigned and order of processing/ASSIGNING them</a></li>
-<li><a href="#2-find-suitable-nodes-where-the-shard-s-can-be-placed">2. Find suitable nodes where THE shard&rsquo;s can be placed</a></li>
-<li><a href="#3-pick-one-node-from-list-of-suitable-nodes-from-above-list-having-lowest-weight">3. Pick one node from list of suitable nodes (from above list) having lowest weight</a></li>
+<li><a href="#1-sorting-the-list-of-shards-that-needs-to-be-assigned-br-and-order-of-processing-assigning-them">1. Sorting the list of shards that needs to be assigned<br/> and order of processing/assigning them</a></li>
+<li><a href="#2-find-suitable-nodes-where-the-shard-s-can-be-placed">2. Find suitable nodes where the shard&rsquo;s can be placed</a></li>
+<li><a href="#3-pick-one-node-from-list-of-suitable-nodes-from-above-list-br-having-lowest-weight">3. Pick one node from list of suitable nodes(from above list)<br/>  having lowest weight</a></li>
 </ul></li>
 </ul></li>
 </ul>
@@ -84,6 +87,8 @@ What AllocationService does ? This service manages the node allocation of a clus
       
 
 <h2 id="demystifying-shard-allocation-internals-in-elasticsearch">Demystifying shard allocation internals in Elasticsearch</h2>
+
+<p><em>Note: This intended for people who want to understand internal workings of Elasticsearch shard allocation</em></p>
 
 <p>Shard Allocation in ES is provided as service component named AllocationService.
 <strong>AllocationService</strong> is initiated and started by ClusterModule which is run in Master node and manages entire cluster level actions.</p>
@@ -110,19 +115,21 @@ What AllocationService does ? This service manages the node allocation of a clus
 This is the method which processes the provided shard (initializing or failed one) and tries to find nodes where these shards can be allocated/re-routed to.
 Reroute method above make following calls to allocate the shards:</p>
 
-<pre><code>`  shardsAllocator.allocate(allocation);`
+<pre><code>  shardsAllocator.allocate(allocation);
 </code></pre>
 
 <p>here shardAllocator is the logic class where all the shard allocation algorithm lies.</p>
 
-<p>Currently ES uses the following shard allocator: <strong>org.elasticsearch.cluster.routing.allocation.allocator.BalancedShardsAllocator</strong>
-<strong>Method:</strong> <a href="https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L884">org.elasticsearch.cluster.routing.allocation.allocator.BalancedShardsAllocator.Balancer#decideAllocateUnassigned</a> is the place where the logic of allocating unassigned shard resides.
-Let’s check out the algorithm used in **decideAllocateUnassigned **method
+<p>Currently ES uses the following shard allocator: <strong>org.elasticsearch.cluster.routing.allocation.allocator.BalancedShardsAllocator</strong></p>
+
+<p><strong>Method:</strong> <a href="https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L884">org.elasticsearch.cluster.routing.allocation.allocator.BalancedShardsAllocator.Balancer#decideAllocateUnassigned</a> is the place where the logic of allocating unassigned shard resides.</p>
+
+<p>Let’s check out the algorithm used in <strong>decideAllocateUnassigned</strong> method
 For each shard that needs to be (re)assigned, BalancedShardsAllocator calls list of deciders (we will focus on list of deciders later below) class for each available node and finds all nodes where the shard can be stored, then amongst those selected nodes it picks the node which has less weight.</p>
 
 <p>we can split entire allocation approach into three parts as sorting and picking required shards to be allocated, and for each shard picking list of suitable nodes , and within those nodes select the one which has less weight (weight scoring is mentioned below).</p>
 
-<h3 id="1-sorting-the-list-of-shards-that-needs-to-assigned-and-order-of-processing-assigning-them">1. SORTING THE LIST OF SHARDS THAT NEEDS TO Assigned and order of processing/ASSIGNING them</h3>
+<h3 id="1-sorting-the-list-of-shards-that-needs-to-be-assigned-br-and-order-of-processing-assigning-them">1. Sorting the list of shards that needs to be assigned<br/> and order of processing/assigning them</h3>
 
 <p>First before allocating the list of shards, ES will sort them. ES uses following approach</p>
 
@@ -135,65 +142,75 @@ For each shard that needs to be (re)assigned, BalancedShardsAllocator calls list
 
 <p>Say there are 2 shards i.e from two index 1 and 2 with replica set as 2, then order of allocating them would be</p>
 
-<p>4 indices</p>
+<pre><code>index1:shard1:primary
+index1:shard2:primary
 
-<p>7 2 6</p>
+index2:shard1:primary
+index2:shard2:primary
 
-<p>index1 -</p>
+index1:shard1:replica1
+index1:shard2:replica1
 
-<p>index1:shard1:primary
-index1:shard2:primary</p>
+index2:shard1:replica1
+index2:shard2:replica1
 
-<p>index2:shard1:primary
-index2:shard2:primary</p>
+index1:shard1:replica2
+index1:shard2:replica2
 
-<p>index1:shard1:replica1
-index1:shard2:replica1</p>
-
-<p>index2:shard1:replica1
-index2:shard2:replica1</p>
-
-<p>index1:shard1:replica2
-index1:shard2:replica2</p>
-
-<p>index2:shard1:replica2
-index2:shard2:replica2</p>
+index2:shard1:replica2
+index2:shard2:replica2
+</code></pre>
 
 <p>This logic is present here: <a href="https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L778-L806">https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L778-L806</a></p>
 
-<h3 id="2-find-suitable-nodes-where-the-shard-s-can-be-placed">2. Find suitable nodes where THE shard&rsquo;s can be placed</h3>
+<h3 id="2-find-suitable-nodes-where-the-shard-s-can-be-placed">2. Find suitable nodes where the shard&rsquo;s can be placed</h3>
 
 <p>In this section for  each shard we find list of nodes where this shard can be placed.
 We have list of following deciders and we run the shard and node info to each of the deciders and if all deciders returns <strong>YES</strong>, then that node is considered as suitable node else any one of the node returns <strong>NO</strong> it wont be considered.</p>
 
-<p>Following are list of deciders that ES currently use and they are called in the order as mentioned below. If any of the deciders returns NO then we short circuit i.e we return early and it means that the node is not suitable for hosting the shard. If all deciders returns YES, then that node will be added to list of supported nodes for a given shard and we go to next section to pick one from the list of supported nodes.</p>
+<p>Following are list of deciders that ES currently use and they are called in the order as mentioned below. If any of the deciders returns <strong>NO</strong> then we short circuit i.e we return early and it means that the node is not suitable for hosting the shard. If all deciders returns <strong>YES</strong>, then that node will be added to list of supported nodes for a given shard and we go to next section to pick one from the list of supported nodes.</p>
 
-<p><strong>MaxRetryAllocationDecider</strong> (Prevent retry i.e fails chain early after shard has been retried multiple times)
-<strong>ResizeAllocationDecider</strong> (<em>ensures we allocate the shards of a target index for resize operations next to the source primaries</em>)
-<strong>ReplicaAfterPrimaryActiveAllocationDecider</strong> (<em>only allows for a replica to be allocated when the primary is active</em>)
-<strong>RebalanceOnlyWhenActiveAllocationDecider</strong> (<em>allow rebalancing when all shards are active within the shard replication group</em>)
-<strong>ClusterRebalanceAllocationDecider</strong>
-<strong>ConcurrentRebalanceAllocationDecider</strong> (throttles shard allocation/re-allocation based on max concurrent rebalance settings)
-<strong>EnableAllocationDecider</strong>
-<strong>NodeVersionAllocationDecider</strong> (ensure ES version and node version are compactible)
-<strong>SnapshotInProgressAllocationDecider</strong> (prevent shard movement which is currently being snapshot)
-<strong>RestoreInProgressAllocationDecider</strong> (prevent shard movement which is currently being restored also prevents failed shards to be allocated)
-<strong>FilterAllocationDecider</strong>
-<strong>SameShardAllocationDecider</strong> (prevents copy of shard allocated to same node)
-<strong>DiskThresholdDecider</strong>
-<strong>ThrottlingAllocationDecider</strong>
-<strong>ShardsLimitAllocationDecider</strong>
-**AwarenessAllocationDecider <strong>(Ensure&rsquo;s that primary and replica are not kept together in same rack/zone  etc)</strong> **</p>
+<p><strong>MaxRetryAllocationDecider</strong> (Prevent retry i.e fails chain early after shard has been retried multiple times)</p>
+
+<p><strong>ResizeAllocationDecider</strong> (<em>ensures we allocate the shards of a target index for resize operations next to the source primaries</em>)</p>
+
+<p><strong>ReplicaAfterPrimaryActiveAllocationDecider</strong> (<em>only allows for a replica to be allocated when the primary is active</em>)</p>
+
+<p><strong>RebalanceOnlyWhenActiveAllocationDecider</strong> (<em>allow rebalancing when all shards are active within the shard replication group</em>)</p>
+
+<p><strong>ClusterRebalanceAllocationDecider</strong></p>
+
+<p><strong>ConcurrentRebalanceAllocationDecider</strong> (throttles shard allocation/re-allocation based on max concurrent rebalance settings)</p>
+
+<p><strong>EnableAllocationDecider</strong></p>
+
+<p><strong>NodeVersionAllocationDecider</strong> (ensure ES version and node version are compactible)</p>
+
+<p><strong>SnapshotInProgressAllocationDecider</strong> (prevent shard movement which is currently being snapshot)</p>
+
+<p><strong>RestoreInProgressAllocationDecider</strong> (prevent shard movement which is currently being restored also prevents failed shards to be allocated)</p>
+
+<p><strong>FilterAllocationDecider</strong></p>
+
+<p><strong>SameShardAllocationDecider</strong> (prevents copy of shard allocated to same node)</p>
+
+<p><strong>DiskThresholdDecider</strong> (Ensure enough disk space is present for shard)</p>
+
+<p><strong>ThrottlingAllocationDecider</strong></p>
+
+<p><strong>ShardsLimitAllocationDecider</strong></p>
+
+<p><strong>AwarenessAllocationDecider</strong> (Ensure&rsquo;s that primary and replica are not kept together in same rack/zone  etc)</p>
 
 <p>this logic is done here: <a href="https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L891">https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L891</a></p>
 
-<h3 id="3-pick-one-node-from-list-of-suitable-nodes-from-above-list-having-lowest-weight">3. Pick one node from list of suitable nodes (from above list) having lowest weight</h3>
+<h3 id="3-pick-one-node-from-list-of-suitable-nodes-from-above-list-br-having-lowest-weight">3. Pick one node from list of suitable nodes(from above list)<br/>  having lowest weight</h3>
 
 <p>Above step i.e Step 2 gives us list of suitable nodes where we can place the shards.
 If step one returns empty list i.e no nodes are suitable for the shard then those shards will be un-assigned and would be retried later.  For each of those suitable nodes where shard can be placed we calculate weight for those nodes assuming the given shard is added to it, then pick the node which has the lowest weight upon allocation.</p>
 
 <p>First these thresholds are derived from settings
-By default <strong>indexBalance = 0.55f</strong> and <strong>shardBalance is 0.45f</strong> and can be changed by changing ES settings named (**cluster.routing.allocation.balance.index <strong>and</strong> luster.routing.allocation.balance.shard**)</p>
+By default <strong>indexBalance = 0.55f</strong> and <strong>shardBalance is 0.45f</strong> and can be changed by changing ES settings named (<strong>cluster.routing.allocation.balance.index</strong> and <strong>cluster.routing.allocation.balance.shard</strong>)</p>
 
 <pre><code>theta0 = shardBalance / (indexBalance + shardBalance);
 theta1 = indexBalance / (indexBalance + shardBalance);
@@ -211,7 +228,7 @@ theta1 = indexBalance / (indexBalance + shardBalance);
          
 </code></pre>
 
-<p>This logic is done here: <a href="https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L898-L963">https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L898-L963</a></p>
+<p>This logic is done here: <a href="https://github.com/elastic/elasticsearch/blob/e60987b95fab3d2d512575a46bcead70a56b8845/server/src/main/java/org/elasticsearch/cluster/routing/allocation/allocator/BalancedShardsAllocator.java#L898-L963">Github link</a></p>
 
     </article>
 
